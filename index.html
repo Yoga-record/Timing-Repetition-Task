@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>時間知覚計測タスク（カウント妨害版）</title>
+    <title>時間知覚計測タスク（指隠れ対策版）</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -25,6 +25,9 @@
             text-align: center;
             max-width: 400px;
             width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         h1 {
@@ -41,7 +44,7 @@
             padding: 10px;
             border-radius: 8px;
             border: 1px solid #fed7d7;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             font-weight: bold;
             text-align: left;
         }
@@ -49,18 +52,35 @@
         #patientIdDisplay {
             font-size: 14px;
             color: #718096;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
             font-weight: bold;
         }
 
-        /* 大きな円形ボタン */
+        /* ★新設：指で隠れない位置（ボタンの上）に表示される妨害数字エリア */
+        #distractorContainer {
+            width: 100%;
+            height: 90px; /* 数字が表示されるスペースをしっかり確保 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        #distractorText {
+            font-size: 72px; /* 指の上で圧倒的な存在感でフラッシュさせる */
+            font-weight: 800;
+            color: #4f46e5;
+            line-height: 1;
+        }
+
+        /* 大きな円形ボタン（下側に配置） */
         #timerButton {
-            width: 220px;
-            height: 220px;
+            width: 200px;
+            height: 200px;
             border-radius: 50%;
             background-color: #4f46e5;
             color: white;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: bold;
             border: none;
             box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
@@ -68,16 +88,6 @@
             outline: none;
             transition: transform 0.1s, background-color 0.2s;
             -webkit-touch-callout: none;
-            position: relative;
-        }
-
-        /* ボタン中央に表示される妨害数字のスタイル */
-        #distractorText {
-            display: block;
-            font-size: 54px; /* 数字を大きく表示して視覚をジャムらせる */
-            font-weight: 800;
-            color: #ffffff;
-            margin-top: 5px;
         }
 
         #timerButton:active {
@@ -86,7 +96,7 @@
         }
 
         #message {
-            margin-top: 35px;
+            margin-top: 30px;
             font-size: 15px;
             font-weight: 500;
             color: #4a5568;
@@ -106,10 +116,11 @@
 
         <div id="patientIdDisplay">ID: 読み込み中...</div>
         
-        <button id="timerButton">
-            <span id="buttonLabel">ここを長押し</span>
-            <span id="distractorText" style="display:none;"></span>
-        </button>
+        <div id="distractorContainer">
+            <span id="distractorText"></span>
+        </div>
+        
+        <button id="timerButton">ここを長押し</button>
         
         <p id="message">ボタンを押すと計測が始まります</p>
     </div>
@@ -119,7 +130,6 @@
         let distractorIntervalId = null;
         
         const button = document.getElementById('timerButton');
-        const buttonLabel = document.getElementById('buttonLabel');
         const distractorText = document.getElementById('distractorText');
         const message = document.getElementById('message');
         const idDisplay = document.getElementById('patientIdDisplay');
@@ -127,19 +137,16 @@
         // URLパラメータからのID取得
         const urlParams = new URLSearchParams(window.location.search);
         const patientId = urlParams.get('id');
-        idDisplay.innerText = patientId ? "参加者ID: " + patientId : "※参加者IDが未設定です";
+        idDisplay.innerText = patientId ? "患者ID: " + patientId : "※患者IDが未設定です";
         if (!patientId) idDisplay.style.color = "#e53e3e";
 
-        // 妨害用数字を不規則なタイミングで変化させる関数（Dual-Taskのシミュレート）
+        // 妨害用数字を指の上で変化させる関数
         function startDistractor() {
-            buttonLabel.style.display = 'none';
-            distractorText.style.display = 'block';
-            
             function changeNumber() {
                 // 0〜9のランダムな数字を表示
                 distractorText.innerText = Math.floor(Math.random() * 10);
                 
-                // 次に数字が変わるまでの時間を200ms〜400msの間でランダムに変動（テンポを不規則にする）
+                // 200ms〜400msの間でランダムに変動（不規則なテンポで脳内の引き込み現象を防ぐ）
                 const nextTimeout = Math.floor(Math.random() * 201) + 200;
                 distractorIntervalId = setTimeout(changeNumber, nextTimeout);
             }
@@ -151,19 +158,17 @@
                 clearTimeout(distractorIntervalId);
                 distractorIntervalId = null;
             }
-            buttonLabel.style.display = 'block';
-            distractorText.style.display = 'none';
             distractorText.innerText = '';
         }
 
-        // ボタンが押されたとき（スマホ・PC両対応）
+        // ボタンが押されたとき
         function onPress(e) {
             e.preventDefault();
-            startTime = window.performance.now(); // スマホの内部時計で純粋な計測を開始
+            startTime = window.performance.now(); 
             message.innerText = "計測中...";
             message.style.color = "#4f46e5";
             
-            // 脳内カウントを妨害するランダム数字フラッシュを開始
+            // 指の上に数字をフラッシュ開始
             startDistractor();
         }
 
@@ -172,17 +177,15 @@
             e.preventDefault();
             if (startTime === 0) return;
 
-            const endTime = window.performance.now(); // スマホの内部時計で終了時刻を確定
-            const durationMs = endTime - startTime; // デバイス側で引き算
+            const endTime = window.performance.now(); 
+            const durationMs = endTime - startTime; 
             startTime = 0;
 
-            // 妨害システムをストップ
             stopDistractor();
 
             message.innerText = "本日の計測が完了しました！";
             message.style.color = "#10b981";
 
-            // 通信遅延の影響を受けない確定数値（durationMs）のみを送信
             sendDataToGoogleForm(durationMs);
         }
 
@@ -196,16 +199,13 @@
             const currentId = patientId || 'unknown';
             const now = new Date().toLocaleString("ja-JP");
 
-            // ------------------------------------------------------------
-            // 【重要】ご自身のGoogleフォームURLとentry番号に書き換えてください
-            // ------------------------------------------------------------
-            const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSf27Jd_cEEcjYapLw-L2R7HnIycZeprqPoFr9ykt0Dm8tuMGQ/formResponse"
+            // フォームURL
+            const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSf27Jd_cEEcjYapLw-L2R7HnIycZeprqPoFr9ykt0Dm8tuMGQ/formResponse";
 
             const formData = new FormData();
             formData.append("entry.1259386702", currentId); 
             formData.append("entry.1624740171", resultMs);  
             formData.append("entry.677181161", now);       
-            // ------------------------------------------------------------
 
             fetch(formUrl, {
                 method: "POST",
