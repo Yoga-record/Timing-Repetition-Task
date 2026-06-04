@@ -198,7 +198,7 @@
         // URLパラメータからのID取得
         const urlParams = new URLSearchParams(window.location.search);
         const patientId = urlParams.get('id');
-        idDisplay.innerText = patientId ? "患者ID: " + patientId : "※患者IDが未設定です";
+        idDisplay.innerText = patientId ? "参加者ID: " + patientId : "※参加者IDが未設定です";
         if (!patientId) idDisplay.style.color = "#e53e3e";
 
         // 妨害用数字をフラッシュさせる関数
