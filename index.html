@@ -103,7 +103,7 @@
             min-height: 24px;
         }
 
-        /* 質問エリアのスタイル */
+        /* 自傷質問エリアのスタイル */
         #surveyArea {
             background: white;
             padding: 25px 20px;
@@ -194,7 +194,6 @@
         const surveyScreen = document.getElementById('surveyScreen');
         const thanksScreen = document.getElementById('thanksScreen');
 
-        // URLパラメータからのID取得
         const urlParams = new URLSearchParams(window.location.search);
         const patientId = urlParams.get('id');
         idDisplay.innerText = patientId ? "参加者ID: " + patientId : "※参加者IDが未設定です";
@@ -235,7 +234,7 @@
 
             stopDistractor();
 
-            // 今日すでに回答したか判定（今日の日付を文字列で取得）
+            // ★今日すでに回答したか判定（今日の日付を文字列で取得、例:"2026/6/4"）
             const todayStr = new Date().toLocaleDateString("ja-JP");
             const lastAnswerDate = localStorage.getItem('last_survey_date');
 
@@ -243,6 +242,7 @@
                 // すでに本日回答済みの場合は、質問画面をスキップ
                 taskScreen.style.display = 'none';
                 thanksScreen.style.display = 'flex';
+                // 傷の有無は「本日回答済み(既回答)」として送信
                 sendFinalDataToGoogleForm(calculatedDurationMs, "本日回答済み");
             } else {
                 // 本日最初の回答の場合は、質問画面へ
@@ -260,7 +260,7 @@
         document.getElementById('btnNo').addEventListener('click', () => handleSurveyAnswer("いいえ"));
 
         function handleSurveyAnswer(surveyResult) {
-            // 回答した日付をスマホに記憶させる
+            // ★回答した日付をスマホに記憶させる
             const todayStr = new Date().toLocaleDateString("ja-JP");
             localStorage.setItem('last_survey_date', todayStr);
 
