@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>時間知覚計測タスク（指隠れ対策版）</title>
+    <title>時間知覚計測タスク</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -56,10 +56,10 @@
             font-weight: bold;
         }
 
-        /* ★新設：指で隠れない位置（ボタンの上）に表示される妨害数字エリア */
+        /* 指で隠れない位置（ボタンの上）に表示される妨害数字エリア */
         #distractorContainer {
             width: 100%;
-            height: 90px; /* 数字が表示されるスペースをしっかり確保 */
+            height: 90px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -67,13 +67,13 @@
         }
 
         #distractorText {
-            font-size: 72px; /* 指の上で圧倒的な存在感でフラッシュさせる */
+            font-size: 72px;
             font-weight: 800;
             color: #4f46e5;
             line-height: 1;
         }
 
-        /* 大きな円形ボタン（下側に配置） */
+        /* 大きな円形ボタン */
         #timerButton {
             width: 200px;
             height: 200px;
@@ -102,11 +102,50 @@
             color: #4a5568;
             min-height: 24px;
         }
+
+        /* ★新設：自傷質問エリアのスタイル */
+        #surveyArea {
+            background: white;
+            padding: 25px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            width: 100%;
+            box-sizing: border-box;
+            text-align: left;
+        }
+
+        .survey-question {
+            font-size: 15px;
+            font-weight: bold;
+            color: #2d3748;
+            line-height: 1.5;
+            margin-bottom: 25px;
+        }
+
+        .survey-btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #fff;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .survey-btn:active {
+            background-color: #f7fafc;
+            border-color: #cbd5e0;
+        }
     </style>
 </head>
 <body>
 
-    <div class="container">
+    <div class="container" id="taskScreen">
         <h1>感覚で「3秒間」ボタンを押し続けてください</h1>
         
         <div class="instruction">
@@ -125,8 +164,25 @@
         <p id="message">ボタンを押すと計測が始まります</p>
     </div>
 
+    <div class="container" id="surveyScreen" style="display: none;">
+        <div id="surveyArea">
+            <div class="survey-question">
+                今日、あなたの身体に何らかの傷（カッティング、引っかき傷、ぶつけた痕など）がつきましたか？
+            </div>
+            <button class="survey-btn" id="btnYes">はい（傷がついた）</button>
+            <button class="survey-btn" id="btnNo">いいえ（傷はついていない）</button>
+        </div>
+    </div>
+
+    <div class="container" id="thanksScreen" style="display: none;">
+        <p style="font-size: 18px; font-weight: bold; color: #10b981;">
+            本日の計測が完了しました！<br>ご協力ありがとうございました。
+        </p>
+    </div>
+
     <script>
         let startTime = 0;
+        let calculatedDurationMs = 0; // 計算されたミリ秒を一時保存する変数
         let distractorIntervalId = null;
         
         const button = document.getElementById('timerButton');
@@ -134,19 +190,21 @@
         const message = document.getElementById('message');
         const idDisplay = document.getElementById('patientIdDisplay');
 
+        // 画面切り替え用の要素
+        const taskScreen = document.getElementById('taskScreen');
+        const surveyScreen = document.getElementById('surveyScreen');
+        const thanksScreen = document.getElementById('thanksScreen');
+
         // URLパラメータからのID取得
         const urlParams = new URLSearchParams(window.location.search);
         const patientId = urlParams.get('id');
         idDisplay.innerText = patientId ? "患者ID: " + patientId : "※患者IDが未設定です";
         if (!patientId) idDisplay.style.color = "#e53e3e";
 
-        // 妨害用数字を指の上で変化させる関数
+        // 妨害用数字をフラッシュさせる関数
         function startDistractor() {
             function changeNumber() {
-                // 0〜9のランダムな数字を表示
                 distractorText.innerText = Math.floor(Math.random() * 10);
-                
-                // 200ms〜400msの間でランダムに変動（不規則なテンポで脳内の引き込み現象を防ぐ）
                 const nextTimeout = Math.floor(Math.random() * 201) + 200;
                 distractorIntervalId = setTimeout(changeNumber, nextTimeout);
             }
@@ -167,8 +225,6 @@
             startTime = window.performance.now(); 
             message.innerText = "計測中...";
             message.style.color = "#4f46e5";
-            
-            // 指の上に数字をフラッシュ開始
             startDistractor();
         }
 
@@ -178,15 +234,14 @@
             if (startTime === 0) return;
 
             const endTime = window.performance.now(); 
-            const durationMs = endTime - startTime; 
+            calculatedDurationMs = endTime - startTime; // ミリ秒を確定させて保存
             startTime = 0;
 
             stopDistractor();
 
-            message.innerText = "本日の計測が完了しました！";
-            message.style.color = "#10b981";
-
-            sendDataToGoogleForm(durationMs);
+            // ★長押しが終わったら、即座に質問画面（ステップ2）へ切り替える
+            taskScreen.style.display = 'none';
+            surveyScreen.style.display = 'flex';
         }
 
         button.addEventListener('touchstart', onPress, {passive: false});
@@ -194,25 +249,44 @@
         button.addEventListener('mousedown', onPress);
         button.addEventListener('mouseup', onRelease);
 
+        // ★質問ボタンがタップされたときの処理
+        document.getElementById('btnYes').addEventListener('click', () => handleSurveyAnswer("はい"));
+        document.getElementById('btnNo').addEventListener('click', () => handleSurveyAnswer("いいえ"));
+
+        function handleSurveyAnswer(surveyResult) {
+            // 質問画面を閉じ、完了画面を表示
+            surveyScreen.style.display = 'none';
+            thanksScreen.style.display = 'flex';
+
+            // 「時間データ」と「傷の有無データ」をセットにしてGoogleへ送信
+            sendFinalDataToGoogleForm(calculatedDurationMs, surveyResult);
+        }
+
         // データ送信関数
-        function sendDataToGoogleForm(resultMs) {
+        function sendFinalDataToGoogleForm(resultMs, injuryStatus) {
             const currentId = patientId || 'unknown';
             const now = new Date().toLocaleString("ja-JP");
 
             // フォームURL
             const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSf27Jd_cEEcjYapLw-L2R7HnIycZeprqPoFr9ykt0Dm8tuMGQ/formResponse";
 
+            // ※Googleフォーム側に新しく「傷の有無」用の3つ目の記述式質問項目を足した場合は、
+            // その新しいentry番号を抽出して、以下のように4つ目のデータを送信できるようにしてください。
+            // 現状は、既存の「日時の箱(entry.677181161)」に、日時と傷の有無を「まとめて1本の文字列」にして送ることで、
+            // フォーム側の項目を増やさなくてもデータが回収できるスマートな裏技仕様にしています。
+            const combinedDateAndStatus = `${now} [傷の有無: ${injuryStatus}]`;
+
             const formData = new FormData();
-            formData.append("entry.1259386702", currentId); 
-            formData.append("entry.1624740171", resultMs);  
-            formData.append("entry.677181161", now);       
+            formData.append("entry.1259386702", currentId);             // 患者ID
+            formData.append("entry.1624740171", resultMs);              // 計測ミリ秒
+            formData.append("entry.677181161", combinedDateAndStatus);  // 送信日時 ＋ 傷の有無
 
             fetch(formUrl, {
                 method: "POST",
                 body: formData,
                 mode: "no-cors"
             })
-            .then(() => { console.log("正常にスプレッドシートに送信されました。"); })
+            .then(() => { console.log("すべてのデータが正常に送信されました。"); })
             .catch((error) => { console.error("送信エラー:", error); });
         }
     </script>
