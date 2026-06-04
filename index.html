@@ -103,7 +103,7 @@
             min-height: 24px;
         }
 
-        /* ★新設：自傷質問エリアのスタイル */
+        /* 質問エリアのスタイル */
         #surveyArea {
             background: white;
             padding: 25px 20px;
@@ -167,7 +167,7 @@
     <div class="container" id="surveyScreen" style="display: none;">
         <div id="surveyArea">
             <div class="survey-question">
-                今日、あなたの身体に何らかの傷（カッティング、引っかき傷、ぶつけた痕など）がつきましたか？
+                今日、あなたの身体に何らかの傷（カッティング, 引っかき傷, ぶつけた痕など）がつきましたか？
             </div>
             <button class="survey-btn" id="btnYes">はい（傷がついた）</button>
             <button class="survey-btn" id="btnNo">いいえ（傷はついていない）</button>
@@ -182,7 +182,7 @@
 
     <script>
         let startTime = 0;
-        let calculatedDurationMs = 0; // 計算されたミリ秒を一時保存する変数
+        let calculatedDurationMs = 0; 
         let distractorIntervalId = null;
         
         const button = document.getElementById('timerButton');
@@ -190,7 +190,6 @@
         const message = document.getElementById('message');
         const idDisplay = document.getElementById('patientIdDisplay');
 
-        // 画面切り替え用の要素
         const taskScreen = document.getElementById('taskScreen');
         const surveyScreen = document.getElementById('surveyScreen');
         const thanksScreen = document.getElementById('thanksScreen');
@@ -201,94 +200,9 @@
         idDisplay.innerText = patientId ? "参加者ID: " + patientId : "※参加者IDが未設定です";
         if (!patientId) idDisplay.style.color = "#e53e3e";
 
-        // 妨害用数字をフラッシュさせる関数
         function startDistractor() {
             function changeNumber() {
                 distractorText.innerText = Math.floor(Math.random() * 10);
                 const nextTimeout = Math.floor(Math.random() * 201) + 200;
                 distractorIntervalId = setTimeout(changeNumber, nextTimeout);
             }
-            changeNumber();
-        }
-
-        function stopDistractor() {
-            if (distractorIntervalId) {
-                clearTimeout(distractorIntervalId);
-                distractorIntervalId = null;
-            }
-            distractorText.innerText = '';
-        }
-
-        // ボタンが押されたとき
-        function onPress(e) {
-            e.preventDefault();
-            startTime = window.performance.now(); 
-            message.innerText = "計測中...";
-            message.style.color = "#4f46e5";
-            startDistractor();
-        }
-
-        // ボタンが離されたとき
-        function onRelease(e) {
-            e.preventDefault();
-            if (startTime === 0) return;
-
-            const endTime = window.performance.now(); 
-            calculatedDurationMs = endTime - startTime; // ミリ秒を確定させて保存
-            startTime = 0;
-
-            stopDistractor();
-
-            // ★長押しが終わったら、即座に質問画面（ステップ2）へ切り替える
-            taskScreen.style.display = 'none';
-            surveyScreen.style.display = 'flex';
-        }
-
-        button.addEventListener('touchstart', onPress, {passive: false});
-        button.addEventListener('touchend', onRelease, {passive: false});
-        button.addEventListener('mousedown', onPress);
-        button.addEventListener('mouseup', onRelease);
-
-        // ★質問ボタンがタップされたときの処理
-        document.getElementById('btnYes').addEventListener('click', () => handleSurveyAnswer("はい"));
-        document.getElementById('btnNo').addEventListener('click', () => handleSurveyAnswer("いいえ"));
-
-        function handleSurveyAnswer(surveyResult) {
-            // 質問画面を閉じ、完了画面を表示
-            surveyScreen.style.display = 'none';
-            thanksScreen.style.display = 'flex';
-
-            // 「時間データ」と「傷の有無データ」をセットにしてGoogleへ送信
-            sendFinalDataToGoogleForm(calculatedDurationMs, surveyResult);
-        }
-
-        // データ送信関数
-        function sendFinalDataToGoogleForm(resultMs, injuryStatus) {
-            const currentId = patientId || 'unknown';
-            const now = new Date().toLocaleString("ja-JP");
-
-            // フォームURL
-            const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSf27Jd_cEEcjYapLw-L2R7HnIycZeprqPoFr9ykt0Dm8tuMGQ/formResponse";
-
-            // ※Googleフォーム側に新しく「傷の有無」用の3つ目の記述式質問項目を足した場合は、
-            // その新しいentry番号を抽出して、以下のように4つ目のデータを送信できるようにしてください。
-            // 現状は、既存の「日時の箱(entry.677181161)」に、日時と傷の有無を「まとめて1本の文字列」にして送ることで、
-            // フォーム側の項目を増やさなくてもデータが回収できるスマートな裏技仕様にしています。
-            const combinedDateAndStatus = `${now} [傷の有無: ${injuryStatus}]`;
-
-            const formData = new FormData();
-            formData.append("entry.1259386702", currentId);             // 患者ID
-            formData.append("entry.1624740171", resultMs);              // 計測ミリ秒
-            formData.append("entry.677181161", combinedDateAndStatus);  // 送信日時 ＋ 傷の有無
-
-            fetch(formUrl, {
-                method: "POST",
-                body: formData,
-                mode: "no-cors"
-            })
-            .then(() => { console.log("すべてのデータが正常に送信されました。"); })
-            .catch((error) => { console.error("送信エラー:", error); });
-        }
-    </script>
-</body>
-</html>
