@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>時間知覚計測タスク（カウント妨害版）</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 18px;
+            color: #2d3748;
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+
+        .instruction {
+            font-size: 13px;
+            color: #e53e3e;
+            background-color: #fff5f5;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #fed7d7;
+            margin-bottom: 25px;
+            font-weight: bold;
+            text-align: left;
+        }
+
+        #patientIdDisplay {
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+
+        /* 大きな円形ボタン */
+        #timerButton {
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background-color: #4f46e5;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+            cursor: pointer;
+            outline: none;
+            transition: transform 0.1s, background-color 0.2s;
+            -webkit-touch-callout: none;
+            position: relative;
+        }
+
+        /* ボタン中央に表示される妨害数字のスタイル */
+        #distractorText {
+            display: block;
+            font-size: 54px; /* 数字を大きく表示して視覚をジャムらせる */
+            font-weight: 800;
+            color: #ffffff;
+            margin-top: 5px;
+        }
+
+        #timerButton:active {
+            transform: scale(0.96);
+            background-color: #4338ca;
+        }
+
+        #message {
+            margin-top: 35px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #4a5568;
+            min-height: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>感覚で「3秒間」ボタンを押し続けてください</h1>
+        
+        <div class="instruction">
+            【重要（数を数えないでください）】<br>
+            頭の中で「1、2、3」と数えると実験データが壊れてしまいます。押している間は、声を出して「あ、あ、あ、あ…」と言い続けながら、体感の感覚だけで3秒を測ってください。
+        </div>
+
+        <div id="patientIdDisplay">ID: 読み込み中...</div>
+        
+        <button id="timerButton">
+            <span id="buttonLabel">ここを長押し</span>
+            <span id="distractorText" style="display:none;"></span>
+        </button>
+        
+        <p id="message">ボタンを押すと計測が始まります</p>
+    </div>
+
+    <script>
+        let startTime = 0;
+        let distractorIntervalId = null;
+        
+        const button = document.getElementById('timerButton');
+        const buttonLabel = document.getElementById('buttonLabel');
+        const distractorText = document.getElementById('distractorText');
+        const message = document.getElementById('message');
+        const idDisplay = document.getElementById('patientIdDisplay');
+
+        // URLパラメータからのID取得
+        const urlParams = new URLSearchParams(window.location.search);
+        const patientId = urlParams.get('id');
+        idDisplay.innerText = patientId ? "患者ID: " + patientId : "※患者IDが未設定です";
+        if (!patientId) idDisplay.style.color = "#e53e3e";
+
+        // 妨害用数字を不規則なタイミングで変化させる関数（Dual-Taskのシミュレート）
+        function startDistractor() {
+            buttonLabel.style.display = 'none';
+            distractorText.style.display = 'block';
+            
+            function changeNumber() {
+                // 0〜9のランダムな数字を表示
+                distractorText.innerText = Math.floor(Math.random() * 10);
+                
+                // 次に数字が変わるまでの時間を200ms〜400msの間でランダムに変動（テンポを不規則にする）
+                const nextTimeout = Math.floor(Math.random() * 201) + 200;
+                distractorIntervalId = setTimeout(changeNumber, nextTimeout);
+            }
+            changeNumber();
+        }
+
+        function stopDistractor() {
+            if (distractorIntervalId) {
+                clearTimeout(distractorIntervalId);
+                distractorIntervalId = null;
+            }
+            buttonLabel.style.display = 'block';
+            distractorText.style.display = 'none';
+            distractorText.innerText = '';
+        }
+
+        // ボタンが押されたとき（スマホ・PC両対応）
+        function onPress(e) {
+            e.preventDefault();
+            startTime = window.performance.now(); // スマホの内部時計で純粋な計測を開始
+            message.innerText = "計測中...";
+            message.style.color = "#4f46e5";
+            
+            // 脳内カウントを妨害するランダム数字フラッシュを開始
+            startDistractor();
+        }
+
+        // ボタンが離されたとき
+        function onRelease(e) {
+            e.preventDefault();
+            if (startTime === 0) return;
+
+            const endTime = window.performance.now(); // スマホの内部時計で終了時刻を確定
+            const durationMs = endTime - startTime; // デバイス側で引き算
+            startTime = 0;
+
+            // 妨害システムをストップ
+            stopDistractor();
+
+            message.innerText = "本日の計測が完了しました！";
+            message.style.color = "#10b981";
+
+            // 通信遅延の影響を受けない確定数値（durationMs）のみを送信
+            sendDataToGoogleForm(durationMs);
+        }
+
+        button.addEventListener('touchstart', onPress, {passive: false});
+        button.addEventListener('touchend', onRelease, {passive: false});
+        button.addEventListener('mousedown', onPress);
+        button.addEventListener('mouseup', onRelease);
+
+        // データ送信関数
+        function sendDataToGoogleForm(resultMs) {
+            const currentId = patientId || 'unknown';
+            const now = new Date().toLocaleString("ja-JP");
+
+            // ------------------------------------------------------------
+            // 【重要】ご自身のGoogleフォームURLとentry番号に書き換えてください
+            // ------------------------------------------------------------
+            const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSf27Jd_cEEcjYapLw-L2R7HnIycZeprqPoFr9ykt0Dm8tuMGQ/formResponse"
+
+            const formData = new FormData();
+            formData.append("entry.1259386702", currentId); 
+            formData.append("entry.1624740171", resultMs);  
+            formData.append("entry.677181161", now);       
+            // ------------------------------------------------------------
+
+            fetch(formUrl, {
+                method: "POST",
+                body: formData,
+                mode: "no-cors"
+            })
+            .then(() => { console.log("正常にスプレッドシートに送信されました。"); })
+            .catch((error) => { console.error("送信エラー:", error); });
+        }
+    </script>
+</body>
+</html>
